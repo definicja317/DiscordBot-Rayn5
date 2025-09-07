@@ -7,18 +7,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 token = os.getenv("DISCORD_BOT_TOKEN")
-client.run(token)
 
 # Zastąp ID roli, która ma uprawnienia do "pikowania"
-PICK_ROLE_ID = 1387501577748873284 
+PICK_ROLE_ID = 1413424476770664499 
 # Zastąp ID kanału, na który mają być wysyłane ogłoszenia
-AIRDROP_CHANNEL_ID = 1387501580583964814
+AIRDROP_CHANNEL_ID = 1206228467260330055
 # Zastąp ID roli, która ma być pingowana w ogłoszeniach o AirDropie
-AIRDROP_ROLE_ID = 1387501577782300781 
+AIRDROP_ROLE_ID = 1413113420135268428 
 # Link do obrazka dla komendy /ping-zancudo
-ZANCUDO_IMAGE_URL = "https://cdn.discordapp.com/attachments/1224129510535069766/1414194392214011974/image.png?ex=68beaea9&is=68bd5d29&hm=31655931b06dc52d7e1be6cd8521e7efe76be3dc57c8e68f816a322d06cce344&"
+ZANCUDO_IMAGE_URL = "https://cdn.discordapp.com/attachments/1224129510535069766/1414194392214011974/image.png"
 # Link do obrazka dla komendy /ping-cayo
-CAYO_IMAGE_URL = "https://cdn.discordapp.com/attachments/1224129510535069766/1414204332747915274/image.png?ex=68beb7eb&is=68bd666b&hm=dd5a29a2777ff0470b0a01d97cbb2f15782fe53f9151a943abf71b4a3ea23542&"
+CAYO_IMAGE_URL = "https://cdn.discordapp.com/attachments/1224129510535069766/1414204332747915274/image.png"
 
 # Słownik do przechowywania danych o capture
 captures = {}
@@ -187,4 +186,5 @@ async def send_airdrop_announcements():
         if channel and role:
             await channel.send(f"@everyone {role.mention} AirDrop {now.hour:02d}:00. Zbierać się i na # voice!")
 
-client.run(TOKEN)
+# Uruchomienie bota
+client.run(token)
