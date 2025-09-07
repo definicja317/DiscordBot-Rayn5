@@ -4,9 +4,16 @@ from discord.ext import tasks
 import os
 import datetime
 from dotenv import load_dotenv
+import sys
 
+# Wczytanie zmiennych środowiskowych
 load_dotenv()
 token = os.getenv("DISCORD_BOT_TOKEN")
+
+# Sprawdzenie, czy token istnieje
+if not token:
+    print("Błąd: brak tokena Discord. Upewnij się, że DISCORD_BOT_TOKEN jest ustawione w .env lub w zmiennych środowiskowych Render.")
+    sys.exit(1)
 
 # Zastąp ID roli, która ma uprawnienia do "pikowania"
 PICK_ROLE_ID = 1413424476770664499 
@@ -22,12 +29,13 @@ CAYO_IMAGE_URL = "https://cdn.discordapp.com/attachments/1224129510535069766/141
 # Słownik do przechowywania danych o capture
 captures = {}
 
-# Konfiguracja bota
+# Konfiguracja klienta
 intents = discord.Intents.default()
 intents.members = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
+# --- Klasy i UI ---
 class PickPlayersView(ui.View):
     def __init__(self, capture_id):
         super().__init__()
@@ -109,6 +117,7 @@ class CapturesView(ui.View):
             ephemeral=True
         )
 
+# --- Eventy i komendy ---
 @client.event
 async def on_ready():
     print(f'Zalogowano jako {client.user}')
@@ -167,7 +176,7 @@ async def ping_cayo(interaction: discord.Interaction, role: discord.Role, channe
         embed=embed
     )
 
-# Funkcja do wysyłania powiadomień o AirDropach 30 minut przed
+# --- Zadania okresowe ---
 @tasks.loop(minutes=60)
 async def send_airdrop_notifications():
     now = datetime.datetime.now()
@@ -176,7 +185,6 @@ async def send_airdrop_notifications():
         if channel:
             await channel.send("Uwaga! AirDrop za 30 minut na kanale voice'owym! Zbierać się!")
 
-# Funkcja do wysyłania ogłoszeń o AirDropach o pełnej godzinie
 @tasks.loop(minutes=60)
 async def send_airdrop_announcements():
     now = datetime.datetime.now()
@@ -186,5 +194,5 @@ async def send_airdrop_announcements():
         if channel and role:
             await channel.send(f"@everyone {role.mention} AirDrop {now.hour:02d}:00. Zbierać się i na # voice!")
 
-# Uruchomienie bota
+# --- Uruchomienie bota ---
 client.run(token)
