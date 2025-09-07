@@ -28,8 +28,10 @@ AIRDROP_CHANNEL_ID = 1206228467260330055
 AIRDROP_ROLE_ID = 1413113420135268428
 ZANCUDO_IMAGE_URL = "https://cdn.discordapp.com/attachments/1224129510535069766/1414194392214011974/image.png"
 CAYO_IMAGE_URL = "https://cdn.discordapp.com/attachments/1224129510535069766/1414204332747915274/image.png"
+AIRDROP_MOD_ROLE_ID = os.getenv("AIRDROP_MOD_ROLE_ID") # Dodanie nowej zmiennej
 
 captures = {}
+airdrop_participants = {}
 
 # --- Discord Client ---
 intents = discord.Intents.default()
@@ -98,13 +100,48 @@ class CapturesView(ui.View):
             return
         await interaction.response.send_message("Wybierz do 25 graczy z listy:", view=PickPlayersView(self.capture_id), ephemeral=True)
 
+class AirdropView(ui.View):
+    def __init__(self, message_id):
+        super().__init__(timeout=None)
+        self.message_id = message_id
+
+    def create_participant_list_embed(self):
+        participants = airdrop_participants.get(self.message_id, [])
+        embed = discord.Embed(
+            title="Lista osób zapisanych na AirDrop",
+            color=discord.Color.blue()
+        )
+        if participants:
+            participant_mentions = "\n".join(f"- {p.mention} | **{p.display_name}**" for p in participants)
+            embed.add_field(name="Uczestnicy:", value=participant_mentions, inline=False)
+        else:
+            embed.description = "Jeszcze nikt się nie zapisał."
+        return embed
+
+    @ui.button(label="Zapisz się na AirDrop", style=discord.ButtonStyle.green, custom_id="airdrop_join_button")
+    async def join_button_callback(self, interaction: discord.Interaction, button: ui.Button):
+        message_id = interaction.message.id
+        if message_id not in airdrop_participants:
+            airdrop_participants[message_id] = []
+        if interaction.user not in airdrop_participants[message_id]:
+            airdrop_participants[message_id].append(interaction.user)
+            await interaction.response.send_message("Zostałeś(aś) zapisany(a) na AirDrop!", ephemeral=True)
+            # Aktualizacja listy uczestników w embedzie
+            embed = self.create_participant_list_embed()
+            await interaction.message.edit(embed=embed)
+        else:
+            await interaction.response.send_message("Jesteś już zapisany(a) na AirDrop!", ephemeral=True)
+
+    @ui.button(label="Sprawdź listę", style=discord.ButtonStyle.blurple, custom_id="airdrop_check_list")
+    async def check_list_callback(self, interaction: discord.Interaction, button: ui.Button):
+        embed = self.create_participant_list_embed()
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
 # --- Eventy i komendy ---
 @client.event
 async def on_ready():
     print(f'Zalogowano jako {client.user}')
     await tree.sync()
-    send_airdrop_notifications.start()
-    send_airdrop_announcements.start()
 
 @tree.command(name="create-capt", description="Tworzy ogłoszenie o captures.")
 @app_commands.describe(image_url="Link do obrazka dla embedu (opcjonalnie)")
@@ -144,23 +181,27 @@ async def ping_cayo(interaction: discord.Interaction, role: discord.Role, channe
     embed.set_image(url=CAYO_IMAGE_URL)
     await interaction.channel.send(content=f"@everyone {role.mention}", embed=embed)
 
-# --- Zadania okresowe ---
-@tasks.loop(minutes=60)
-async def send_airdrop_notifications():
-    now = datetime.datetime.now()
-    if now.minute == 30 and (now.hour % 4) == 3:
-        channel = client.get_channel(AIRDROP_CHANNEL_ID)
-        if channel:
-            await channel.send("Uwaga! AirDrop za 30 minut na kanale voice'owym! Zbierać się!")
-
-@tasks.loop(minutes=60)
-async def send_airdrop_announcements():
-    now = datetime.datetime.now()
-    if now.minute == 0 and (now.hour % 4) == 0:
-        channel = client.get_channel(AIRDROP_CHANNEL_ID)
-        role = client.get_role(AIRDROP_ROLE_ID)
-        if channel and role:
-            await channel.send(f"@everyone {role.mention} AirDrop {now.hour:02d}:00. Zbierać się i na # voice!")
+@tree.command(name="airdrop", description="Wysyła ogłoszenie o airdropie z możliwością zapisu.")
+@app_commands.describe(channel="Kanał, na który wysłać ogłoszenie", ping_role="Rola do spingowania", message="Wiadomość do wysłania")
+async def airdrop_command(interaction: discord.Interaction, channel: discord.TextChannel, ping_role: discord.Role, message: str):
+    if not interaction.user.get_role(int(AIRDROP_MOD_ROLE_ID)):
+        await interaction.response.send_message("Nie masz uprawnień do użycia tej komendy.", ephemeral=True)
+        return
+    
+    embed = discord.Embed(
+        title="AirDrop!",
+        description=message,
+        color=discord.Color.blue()
+    )
+    
+    await interaction.response.defer()
+    sent_message = await channel.send(content=f"{ping_role.mention}", embed=embed)
+    
+    # Dodanie przycisku po wysłaniu wiadomości, aby uzyskać message.id
+    view = AirdropView(sent_message.id)
+    await sent_message.edit(view=view)
+    
+    await interaction.followup.send("Wysłano ogłoszenie o airdropie.", ephemeral=True)
 
 # --- Uruchomienie Discord Bota w osobnym wątku ---
 def run_discord_bot():
